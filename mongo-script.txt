@@ -1,0 +1,57 @@
+db.tempCollection.find().forEach(function(data) {
+  var percentage = ((data.LAST - data.PREVCLOSE)/data.PREVCLOSE)*100
+  db.marketStats.findAndModify({
+    query: { "_id": data.ISIN },
+    update: {
+      $setOnInsert: {
+          "_id": data.ISIN,
+          "name": data.SYMBOL,
+          "dates": [{
+            "date": data.TIMESTAMP,
+            "open": data.OPEN,
+            "close": data.CLOSE,
+            "high": data.HIGH,
+            "last": data.LAST,
+            "prevClose": data.PREVCLOSE,
+            "percentage": percentage
+          }]
+      }
+    },
+    upsert: true
+  })
+
+  db.marketStats.findAndModify({
+    query: { "_id": data.ISIN, "dates": { "$not": { $elemMatch: { "date": data.TIMESTAMP } }} },
+    update: {
+      $push: {
+        "dates": {
+          "date": data.TIMESTAMP,
+          "open": data.OPEN,
+          "close": data.CLOSE,
+          "high": data.HIGH,
+          "last": data.LAST,
+          "prevClose": data.PREVCLOSE,
+          "percentage": percentage
+        }
+      }
+    },
+    upsert: false
+  })
+
+  db.marketStats.update(
+    { "_id": data.ISIN, "dates": { $elemMatch: { "date": data.TIMESTAMP } } },
+    { 
+      $set: {
+        "dates.$": {
+          "date": data.TIMESTAMP,
+          "open": data.OPEN,
+          "close": data.CLOSE,
+          "high": data.HIGH,
+          "last": data.LAST,
+          "prevClose": data.PREVCLOSE,
+          "percentage": percentage
+        }
+      }
+    }
+  )
+})
