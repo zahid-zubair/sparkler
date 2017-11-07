@@ -1,5 +1,16 @@
+var months = [
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", 
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+];
+
 db.tempCollection.find().forEach(function(data) {
-  var percentage = ((data.LAST - data.PREVCLOSE)/data.PREVCLOSE)*100
+  var percentage = ((data.LAST - data.PREVCLOSE)/data.PREVCLOSE)*100;
+  var splitDate = data.TIMESTAMP.split("-");
+  var monthString = splitDate[1].toUpperCase();
+  var monthIndex = months.indexOf( monthString ) + 1;
+  monthIndex = ( monthIndex < 10 ) ?  "0" + monthIndex : monthIndex;
+  var dateString = "20" + splitDate[2] + "-" + monthIndex + "-" + splitDate[0];
+  var formattedDate = new Date(dateString);
   db.marketStats.findAndModify({
     query: { "_id": data.ISIN },
     update: {
@@ -7,7 +18,7 @@ db.tempCollection.find().forEach(function(data) {
           "_id": data.ISIN,
           "name": data.SYMBOL,
           "dates": [{
-            "date": data.TIMESTAMP,
+            "date": formattedDate,
             "open": data.OPEN,
             "close": data.CLOSE,
             "high": data.HIGH,
@@ -21,11 +32,11 @@ db.tempCollection.find().forEach(function(data) {
   })
 
   db.marketStats.findAndModify({
-    query: { "_id": data.ISIN, "dates": { "$not": { $elemMatch: { "date": data.TIMESTAMP } }} },
+    query: { "_id": data.ISIN, "dates": { "$not": { $elemMatch: { "date": formattedDate } }} },
     update: {
       $push: {
         "dates": {
-          "date": data.TIMESTAMP,
+          "date": formattedDate,
           "open": data.OPEN,
           "close": data.CLOSE,
           "high": data.HIGH,
@@ -39,11 +50,11 @@ db.tempCollection.find().forEach(function(data) {
   })
 
   db.marketStats.update(
-    { "_id": data.ISIN, "dates": { $elemMatch: { "date": data.TIMESTAMP } } },
+    { "_id": data.ISIN, "dates": { $elemMatch: { "date": formattedDate } } },
     { 
       $set: {
         "dates.$": {
-          "date": data.TIMESTAMP,
+          "date": formattedDate,
           "open": data.OPEN,
           "close": data.CLOSE,
           "high": data.HIGH,
